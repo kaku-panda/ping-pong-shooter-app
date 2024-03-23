@@ -16,7 +16,7 @@ class MainPage extends HookConsumerWidget {
     final recognitions = ref.watch(recognitionsProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Flutter YOLOv5 App'),
+        title: const Text('YOLOv5 App'),
       ),
       body: mlCamera.when(
         data: (mlCamera) => Stack(
@@ -69,12 +69,7 @@ class CameraView extends StatelessWidget {
   final CameraController cameraController;
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      /// from camera 0.7.0, change aspect ratio
-      /// https://pub.dev/packages/camera/changelog#070
-      aspectRatio: 1 / cameraController.value.aspectRatio,
-      child: CameraPreview(cameraController),
-    );
+    return CameraPreview(cameraController);
   }
 }
 

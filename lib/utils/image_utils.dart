@@ -1,17 +1,14 @@
 import 'package:camera/camera.dart';
 import 'package:image/image.dart' as image_lib;
 
-/// ImageUtils
-/// https://gist.github.com/am15h/e7c9da2e123642aa6452a2baa96c3ff3#file-image_utils-dart
 class ImageUtils {
-  /// Converts a [CameraImage] in YUV420 format to
-  /// [image_lib.Image] in RGB format
   static image_lib.Image convertYUV420ToImage(CameraImage cameraImage) {
+    
     final width = cameraImage.width;
     final height = cameraImage.height;
 
-    final uvRowStride = cameraImage.planes[1].bytesPerRow;
-    final uvPixelStride = cameraImage.planes[1].bytesPerPixel;
+    final uvRowStride = cameraImage.planes[0].bytesPerRow;
+    final uvPixelStride = cameraImage.planes[0].bytesPerPixel;
 
     final image = image_lib.Image(width, height);
 
@@ -31,7 +28,6 @@ class ImageUtils {
     return image;
   }
 
-  /// Convert a single YUV pixel to RGB
   static int yuv2rgb(int y, int u, int v) {
     // Convert yuv pixel to rgb
     var r = (y + v * 1436 / 1024 - 179).round();
@@ -47,5 +43,28 @@ class ImageUtils {
     ((b << 16) & 0xff0000) |
     ((g << 8) & 0xff00) |
     (r & 0xff);
+  }
+
+  static image_lib.Image convertBGRAToImage(CameraImage cameraImage) {
+    final width = cameraImage.width;
+    final height = cameraImage.height;
+
+    final image = image_lib.Image(width, height);
+
+    // BGRA形式のカメライメージから各ピクセルの色を取得してImageオブジェクトにセット
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        // BGRAフォーマットなので、1ピクセルあたり4バイト
+        final pixelOffset = (y * width + x) * 4;
+        final blue = cameraImage.planes[0].bytes[pixelOffset];
+        final green = cameraImage.planes[0].bytes[pixelOffset + 1];
+        final red = cameraImage.planes[0].bytes[pixelOffset + 2];
+        final alpha = cameraImage.planes[0].bytes[pixelOffset + 3];
+        // image ライブラリの setImage でピクセルの色を設定
+        image.setPixelRgba(x, y, red, green, blue, alpha);
+      }
+    }
+
+    return image;
   }
 }

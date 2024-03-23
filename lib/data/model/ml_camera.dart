@@ -48,7 +48,7 @@ class MLCamera {
 
   late double ratio = Platform.isAndroid
       ? cameraViewSize.width / cameraController.value.previewSize!.height
-      : cameraViewSize.width / cameraController.value.previewSize!.width;
+      : cameraViewSize.width / cameraController.value.previewSize!.height;
 
   late Size actualPreviewSize = Size(
     cameraViewSize.width,
@@ -81,9 +81,23 @@ class MLCamera {
   static Future<List<Recognition>> inference(
       IsolateData isolateCamImgData
       ) async {
-    var image = ImageUtils.convertYUV420ToImage(
-      isolateCamImgData.cameraImage,
-    );
+    
+    late image_lib.Image image;
+
+    if(isolateCamImgData.cameraImage.format.group == ImageFormatGroup.yuv420){
+      image = ImageUtils.convertYUV420ToImage(
+        isolateCamImgData.cameraImage,
+      );
+    }else if(isolateCamImgData.cameraImage.format.group == ImageFormatGroup.bgra8888){
+      image = ImageUtils.convertBGRAToImage(
+        isolateCamImgData.cameraImage,
+      );
+    }else{
+      image = ImageUtils.convertBGRAToImage(
+        isolateCamImgData.cameraImage,
+      );
+    }
+    
     if (Platform.isAndroid) {
       image = image_lib.copyRotate(image, 90);
     }

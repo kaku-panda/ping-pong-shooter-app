@@ -27,8 +27,8 @@ class Classifier {
   late List<TfLiteType> _outputTypes;
 
   static const int clsNum = 80;
-  static const double objConfTh = 0.80;
-  static const double clsConfTh = 0.80;
+  static const double objConfTh = 0.60;
+  static const double clsConfTh = 0.0;
 
   /// load interpreter
   Future<void> loadModel(Interpreter? interpreter) async {
