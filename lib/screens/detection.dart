@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_yolov5_app/components/style.dart';
+import 'package:flutter_yolov5_app/main.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:camera/camera.dart';
 
 import 'package:flutter_yolov5_app/data/model/ml_camera.dart';
 import 'package:flutter_yolov5_app/data/entity/recognition.dart';
 
-class MainPage extends HookConsumerWidget {
-  const MainPage({Key? key}) : super(key: key);
-  static String routeName = '/main';
+class DetectionScreen extends HookConsumerWidget {
+  const DetectionScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    
     final size = MediaQuery.of(context).size;
     final mlCamera = ref.watch(mlCameraProvider(size));
     final recognitions = ref.watch(recognitionsProvider);
+    
     return Scaffold(
       appBar: AppBar(
-        title: const Text('YOLOv5 App'),
+        title: Text("${ref.watch(settingProvider).predictionDurationMs} ms", style: Styles.defaultStyle18),
       ),
       body: mlCamera.when(
         data: (mlCamera) => Stack(
@@ -49,6 +52,7 @@ class MainPage extends HookConsumerWidget {
     if (recognitions.isEmpty) {
       return const SizedBox();
     }
+
     return Stack(
       children: recognitions.map((result) {
         return BoundingBox(

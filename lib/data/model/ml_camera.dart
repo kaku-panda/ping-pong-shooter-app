@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_yolov5_app/main.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:image/image.dart' as image_lib;
 import 'package:tflite_flutter/tflite_flutter.dart';
@@ -22,7 +23,7 @@ final mlCameraProvider = FutureProvider.autoDispose.family<MLCamera, Size>((ref,
   );
   await cameraController.initialize();
   final mlCamera = MLCamera(
-    ref.read,
+    ref,
     cameraController,
     size,
   );
@@ -31,17 +32,17 @@ final mlCameraProvider = FutureProvider.autoDispose.family<MLCamera, Size>((ref,
 
 class MLCamera {
   MLCamera(
-      this._read,
+      this._ref,
       this.cameraController,
       this.cameraViewSize,
       ) {
     Future(() async {
-      classifier = Classifier();
+      classifier = Classifier(useGPU:  _ref.read(settingProvider).useGPU);
       await cameraController.startImageStream(onCameraAvailable);
     });
   }
 
-  final Reader _read;
+  final Ref _ref;
   final CameraController cameraController;
 
   final Size cameraViewSize;
@@ -60,6 +61,11 @@ class MLCamera {
   bool isPredicting = false;
 
   Future<void> onCameraAvailable(CameraImage cameraImage) async {
+
+    if(_ref.read(settingProvider).isStop){
+      return;
+    }
+
     if (classifier.interpreter == null) {
       return;
     }
@@ -69,11 +75,20 @@ class MLCamera {
     }
 
     isPredicting = true;
+    
+    final startTime = DateTime.now();
+
     final isolateCamImgData = IsolateData(
       cameraImage: cameraImage,
       interpreterAddress: classifier.interpreter!.address,
     );
-    _read(recognitionsProvider.notifier).state = await compute(inference, isolateCamImgData);
+    _ref.read(recognitionsProvider.notifier).state = await compute(inference, isolateCamImgData);
+    
+    final endTime = DateTime.now();
+    final duration = endTime.difference(startTime);
+
+    _ref.read(settingProvider).predictionDurationMs = duration.inMilliseconds;
+
     isPredicting = false;
   }
 

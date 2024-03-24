@@ -11,8 +11,9 @@ import 'package:flutter_yolov5_app/data/entity/recognition.dart';
 class Classifier {
   Classifier({
     Interpreter? interpreter,
+    bool? useGPU,
   }) {
-    loadModel(interpreter);
+    loadModel(interpreter, useGPU ?? false);
   }
   late Interpreter? _interpreter;
   Interpreter? get interpreter => _interpreter;
@@ -27,16 +28,31 @@ class Classifier {
   late List<TfLiteType> _outputTypes;
 
   static const int clsNum = 80;
-  static const double objConfTh = 0.60;
-  static const double clsConfTh = 0.0;
+  static const double objConfTh = 0.50;
+  static const double clsConfTh = 0.50;
 
   /// load interpreter
-  Future<void> loadModel(Interpreter? interpreter) async {
+  Future<void> loadModel(Interpreter? interpreter, [bool useGPU = false]) async {
     try {
+      var options = InterpreterOptions();
+
+      if(interpreter == null){
+        if(useGPU){
+          final gpuDelegate = GpuDelegate(
+            options: GpuDelegateOptions(
+              allowPrecisionLoss: true,
+              waitType: TFLGpuDelegateWaitType.active,
+            ),
+          );
+          options.addDelegate(gpuDelegate);
+        }else{
+          options.threads = 4;
+        }
+      }
       _interpreter = interpreter ??
           await Interpreter.fromAsset(
             modelFileName,
-            options: InterpreterOptions()..threads = 4,
+            options: options,
           );
       final outputTensors = _interpreter!.getOutputTensors();
       _outputShapes = [];
