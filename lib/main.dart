@@ -1,6 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////
 /// import
 ////////////////////////////////////////////////////////////////////////////////////////////
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/material.dart';
@@ -158,12 +159,53 @@ class MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
 
     ref.read(settingProvider).loadPreferences();
     final router = ref.watch(routerProvider);
+    final isDark = ref.watch(settingProvider).enableDarkTheme;
 
     return MaterialApp.router(
       title: 'YOLOv5',
-      theme: ThemeData.from(
-        colorScheme: const ColorScheme.dark(),
+      theme: ThemeData(
+        scaffoldBackgroundColor: Styles.lightBgColor,
+        primaryColor: Styles.primaryColor,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Styles.lightColor,
+          elevation: 0.4,
+          scrolledUnderElevation: 0.4,
+          shadowColor: Colors.black,
+        ),
+        cupertinoOverrideTheme: const CupertinoThemeData(
+          primaryColor: Colors.black,
+          brightness: Brightness.light,
+        ),
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+          backgroundColor: Styles.lightColor,
+          selectedItemColor: Styles.primaryColor,
+          unselectedItemColor: Colors.grey,
+        ),
+        brightness: Brightness.light
       ),
+      darkTheme: ThemeData(
+        scaffoldBackgroundColor: Styles.darkBgColor,
+        primaryColor: Styles.primaryColor,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Styles.darkColor,
+          elevation: 0.4,
+          scrolledUnderElevation: 0.4,
+          shadowColor: Color(0xFF8C8C8C),
+        ),
+        cupertinoOverrideTheme: const CupertinoThemeData(
+          primaryColor: Colors.white,
+          brightness: Brightness.dark,
+        ),
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+          backgroundColor: Styles.darkColor,
+          selectedItemColor: Styles.primaryColor,
+          unselectedItemColor: Styles.hiddenColor,
+        ),
+        brightness: Brightness.dark,
+        
+      ),
+      
+      themeMode: (isDark) ? ThemeMode.dark : ThemeMode.light,
       
       debugShowCheckedModeBanner: false,
       localizationsDelegates:const  [

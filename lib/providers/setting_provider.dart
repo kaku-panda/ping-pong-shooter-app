@@ -10,8 +10,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 class SettingProvider extends ChangeNotifier {
   
   bool _enableDarkTheme = true;
-  bool _useGPU = false;
-  bool _isStop = false;
 
   bool isEditting = false;
   bool isRotating = false;
@@ -21,18 +19,24 @@ class SettingProvider extends ChangeNotifier {
   double _appBarHeight = 0.0;
   double _navigationBarHeight = 0.0;
   
-  int? _predictionDurationMs;
+  // for detection
+  bool _isStop = false;
+  bool _useGPU = false;
+  int? _predictionDurationMs = 0;
+  String _modelName = 'yolov5n_float32.tflite';
 
   bool get enableDarkTheme  => _enableDarkTheme;
-  bool get useGPU => _useGPU;
-  bool get isStop => _isStop;
-
-  int get predictionDurationMs => _predictionDurationMs ?? 0;
-  
+ 
   double get screenPaddingTop    => _screenPaddngTop;
   double get screenPaddingBottom => _screenPaddngBottom;
   double get appBarHeight        => _appBarHeight;
   double get navigationBarHeight => _navigationBarHeight;
+
+  // for detection
+  bool get useGPU => _useGPU;
+  bool get isStop => _isStop;
+  int get predictionDurationMs => _predictionDurationMs ?? 0;
+  String get modelName => _modelName;
 
   set enableDarkTheme(bool result) {
     _enableDarkTheme = result;
@@ -51,6 +55,11 @@ class SettingProvider extends ChangeNotifier {
 
   set predictionDurationMs(int result) {
     _predictionDurationMs = result;
+    notifyListeners();
+  }
+
+  set modelName(String result) {
+    _modelName = result;
     notifyListeners();
   }
 
@@ -79,6 +88,7 @@ class SettingProvider extends ChangeNotifier {
     _enableDarkTheme = prefs.getBool('enableDarkTheme') ?? true;
     _useGPU = prefs.getBool('useGPU') ?? false;
     _isStop = prefs.getBool('isStop') ?? false;
+    _modelName = prefs.getString('modelName') ?? 'yolov5n_float32.tflite';
     notifyListeners();
   }
 
@@ -87,6 +97,7 @@ class SettingProvider extends ChangeNotifier {
     prefs.setBool('enableDarkTheme', _enableDarkTheme);
     prefs.setBool('useGPU', _useGPU);
     prefs.setBool('isStop', _isStop);
+    prefs.setString('modelName', _modelName);
     notifyListeners();
   }
 }

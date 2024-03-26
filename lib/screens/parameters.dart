@@ -26,7 +26,9 @@ class ParametersScreen extends ConsumerStatefulWidget {
 }
 
 class SettingScreenState extends ConsumerState<ParametersScreen> {
+  
   Size screenSize = const Size(0, 0);
+  List<String> modelList = ['coco128_float32.tflite', 'yolov5n_float32.tflite', 'yolov5s_float32.tflite', 'yolov5m_float32.tflite', 'yolov5l_float32.tflite'];
 
   @override
   Widget build(BuildContext context) {
@@ -36,14 +38,9 @@ class SettingScreenState extends ConsumerState<ParametersScreen> {
     );
 
     bool enableDarkTheme = ref.watch(settingProvider).enableDarkTheme;
-    bool useGPU = ref.watch(settingProvider).useGPU;
-    bool isStop = ref.watch(settingProvider).isStop;
-
-    // Future<String> getVersionInfo() async {
-    //   PackageInfo packageInfo = await PackageInfo.fromPlatform();
-    //   var text = packageInfo.version;
-    //   return text;
-    // }
+    bool   useGPU    = ref.watch(settingProvider).useGPU;
+    bool   isStop    = ref.watch(settingProvider).isStop;
+    String modelName = ref.watch(settingProvider).modelName;
 
     return SafeArea(
         child: SettingsList(
@@ -93,6 +90,41 @@ class SettingScreenState extends ConsumerState<ParametersScreen> {
                               setState(() {});
                               ref.read(settingProvider).enableDarkTheme =
                                   index == 1 ? true : false;
+                              ref.read(settingProvider).storePreferences();
+                            },
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+                SettingsTile.navigation(
+                  leading: const Icon(Icons.calculate_outlined),
+                  title: Text('Use Model', style: Styles.defaultStyle13),
+                  value: Text(
+                    modelName,
+                    style: Styles.defaultStyle13,
+                  ),
+                  onPressed: (value) {
+                    setState( 
+                      () {
+                        showModalWindow(
+                          context,
+                          0.5,
+                          buildModalWindowContainer(
+                            context,
+                            [
+                              for (var model in modelList)
+                                Text(
+                                  model,
+                                  style: Styles.headlineStyle13,
+                                  textAlign: TextAlign.center,
+                                ),
+                            ],
+                            0.5,
+                            (BuildContext context, int index) {
+                              setState(() {});
+                              ref.read(settingProvider).modelName = modelList[index];
                               ref.read(settingProvider).storePreferences();
                             },
                           ),

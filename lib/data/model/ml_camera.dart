@@ -32,12 +32,15 @@ final mlCameraProvider = FutureProvider.autoDispose.family<MLCamera, Size>((ref,
 
 class MLCamera {
   MLCamera(
-      this._ref,
-      this.cameraController,
-      this.cameraViewSize,
-      ) {
+    this._ref,
+    this.cameraController,
+    this.cameraViewSize,
+  ) {
     Future(() async {
-      classifier = Classifier(useGPU:  _ref.read(settingProvider).useGPU);
+      classifier = Classifier(
+        useGPU: _ref.read(settingProvider).useGPU,
+        modelName: _ref.read(settingProvider).modelName,
+      );
       await cameraController.startImageStream(onCameraAvailable);
     });
   }

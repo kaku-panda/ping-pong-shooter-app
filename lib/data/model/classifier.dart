@@ -12,13 +12,12 @@ class Classifier {
   Classifier({
     Interpreter? interpreter,
     bool? useGPU,
+    String? modelName,
   }) {
     loadModel(interpreter, useGPU ?? false);
   }
   late Interpreter? _interpreter;
   Interpreter? get interpreter => _interpreter;
-
-  static const String modelFileName = 'coco128.tflite';
 
   /// image size into interpreter
   static const int inputSize = 640;
@@ -32,7 +31,7 @@ class Classifier {
   static const double clsConfTh = 0.50;
 
   /// load interpreter
-  Future<void> loadModel(Interpreter? interpreter, [bool useGPU = false]) async {
+  Future<void> loadModel(Interpreter? interpreter, [bool useGPU = false, String modelName = 'coco128_float32.tflite']) async {
     try {
       var options = InterpreterOptions();
 
@@ -51,7 +50,7 @@ class Classifier {
       }
       _interpreter = interpreter ??
           await Interpreter.fromAsset(
-            modelFileName,
+            modelName,
             options: options,
           );
       final outputTensors = _interpreter!.getOutputTensors();
@@ -99,7 +98,7 @@ class Classifier {
     ///  normalize from zero to one
     List<double> normalizedInputImage = [];
     for (var pixel in inputImage.tensorBuffer.getDoubleList()) {
-      normalizedInputImage.add(pixel / 255.0);
+      normalizedInputImage.add(pixel/255);
     }
     var normalizedTensorBuffer = TensorBuffer.createDynamic(TfLiteType.float32);
     normalizedTensorBuffer.loadList(normalizedInputImage, shape: [inputSize, inputSize, 3]);
