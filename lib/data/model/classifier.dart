@@ -143,12 +143,12 @@ class Classifier {
     for (int i = 0; i < numDetections; i++) {
       double y = boxesList[i * 4 + 0];
       double x = boxesList[i * 4 + 1];
-      double h = boxesList[i * 4 + 2] - y; // 高さはymax - ymin
-      double w = boxesList[i * 4 + 3] - x; // 幅はxmax - xmin
+      double h = boxesList[i * 4 + 2] - y;
+      double w = boxesList[i * 4 + 3] - x;
       Rect rect = Rect.fromLTWH(x*inputSize, y*inputSize, w*inputSize, h*inputSize);
+      Rect transformRect = imageProcessor!.inverseTransformRect(rect, image.height, image.width);
       if(scoresList[i] < objConfTh) continue;
-      // Recognitionオブジェクトを作成してリストに追加
-      recognitions.add(Recognition(i, classIdsList[i].toInt(), scoresList[i], rect));
+      recognitions.add(Recognition(i, classIdsList[i].toInt(), scoresList[i], transformRect));
     }
     return recognitions;
   }
