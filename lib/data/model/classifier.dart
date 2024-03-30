@@ -1,6 +1,6 @@
 import 'dart:math';
+import 'dart:typed_data';
 import 'dart:ui';
-
 import 'package:image/image.dart' as image_lib;
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:tflite_flutter_helper/tflite_flutter_helper.dart';
@@ -19,16 +19,14 @@ class Classifier {
   late Interpreter? _interpreter;
   Interpreter? get interpreter => _interpreter;
 
-  /// image size into interpreter
-  static const int inputSize = 640;
-
   ImageProcessor? imageProcessor;
-  late List<List<int>> _outputShapes;
+  late int inputSize;
+  late List<List<int>> outputShapes;
   late List<TfLiteType> _outputTypes;
 
   static const int clsNum = 80;
-  static const double objConfTh = 0.50;
-  static const double clsConfTh = 0.50;
+  static const double objConfTh = 0.60;
+  static const double clsConfTh = 0.60;
 
   /// load interpreter
   Future<void> loadModel(Interpreter? interpreter, [bool useGPU = false, String modelName = 'coco128_float32.tflite']) async {
@@ -50,14 +48,16 @@ class Classifier {
       }
       _interpreter = interpreter ??
           await Interpreter.fromAsset(
-            modelName,
+            'ssd_mobilenet.tflite',
+            // modelName,
             options: options,
           );
+      inputSize = _interpreter!.getInputTensor(0).shape[1];
       final outputTensors = _interpreter!.getOutputTensors();
-      _outputShapes = [];
+      outputShapes = [];
       _outputTypes = [];
       for (final tensor in outputTensors) {
-        _outputShapes.add(tensor.shape);
+        outputShapes.add(tensor.shape);
         _outputTypes.add(tensor.type);
       }
     } on Exception catch (e) {
@@ -95,52 +95,60 @@ class Classifier {
     var inputImage = TensorImage.fromImage(image);
     inputImage = getProcessedImage(inputImage);
 
-    ///  normalize from zero to one
-    List<double> normalizedInputImage = [];
-    for (var pixel in inputImage.tensorBuffer.getDoubleList()) {
-      normalizedInputImage.add(pixel/255);
-    }
+    TfLiteType tensorType;
+    List<int> shape = [inputSize, inputSize, 3];
     var normalizedTensorBuffer = TensorBuffer.createDynamic(TfLiteType.float32);
-    normalizedTensorBuffer.loadList(normalizedInputImage, shape: [inputSize, inputSize, 3]);
+
+    if ( _interpreter!.getInputTensors()[0].type == TfLiteType.uint8) {
+      tensorType = TfLiteType.uint8;
+      List<int> normalizedInputImage = [];
+      for (var pixel in inputImage.tensorBuffer.getIntList()) {
+        normalizedInputImage.add(pixel.toInt());
+      }
+      normalizedTensorBuffer = TensorBuffer.createDynamic(tensorType);
+      normalizedTensorBuffer.loadList(normalizedInputImage, shape: shape);
+    } else {
+      tensorType = TfLiteType.float32;
+      List<double> normalizedInputImage = [];
+      for (var pixel in inputImage.tensorBuffer.getDoubleList()) {
+        normalizedInputImage.add(pixel/255);
+      }
+      normalizedTensorBuffer = TensorBuffer.createDynamic(tensorType);
+      normalizedTensorBuffer.loadList(normalizedInputImage, shape: shape);
+    } 
 
     final inputs = [normalizedTensorBuffer.buffer];
 
     /// tensor for results of inference
-    final outputLocations = TensorBufferFloat(_outputShapes[0]);
-    final outputs = {
-      0: outputLocations.buffer,
-    };
+    final List<TensorBufferFloat> outputLocations = List<TensorBufferFloat>.generate(
+      outputShapes.length, (index) => TensorBufferFloat(outputShapes[index]),
+    );
 
+    final outputs = {
+      for (int i = 0; i < outputLocations.length; i++) i: outputLocations[i].buffer,
+    };
+    
     _interpreter!.runForMultipleInputs(inputs, outputs);
 
-    /// make recognition
-    final recognitions = <Recognition>[];
-    List<double> results = outputLocations.getDoubleList();
-    for (var i = 0; i < results.length; i += (5 + clsNum)) {
-      // check obj conf
-      if (results[i + 4] < objConfTh) continue;
+    // outputsからByteBufferを取得し、Float32Listに変換する例
+    Float32List boxesList = outputs[0]!.asFloat32List();
+    Float32List classIdsList = outputs[1]!.asFloat32List();
+    Float32List scoresList = outputs[2]!.asFloat32List();
+    Float32List numDetectionsList = outputs[3]!.asFloat32List();
 
-      /// check cls conf
-      // double maxClsConf = results[i + 5];
-      double maxClsConf = results.sublist(i + 5, i + 5 + clsNum - 1).reduce(max);
-      if (maxClsConf < clsConfTh) continue;
+    // Float32Listから必要なデータを取得する
+    int numDetections = numDetectionsList[0].toInt();
 
-      /// add detects
-      // int cls = 0;
-      int cls = results.sublist(i + 5, i + 5 + clsNum - 1).indexOf(maxClsConf) % clsNum;
-      Rect outputRect = Rect.fromCenter(
-        center: Offset(
-          results[i] * inputSize,
-          results[i + 1] * inputSize,
-        ),
-        width: results[i + 2] * inputSize,
-        height: results[i + 3] * inputSize,
-      );
-      Rect transformRect = imageProcessor!.inverseTransformRect(outputRect, image.height, image.width);
-
-      recognitions.add(
-          Recognition(i, cls, maxClsConf, transformRect)
-      );
+    List<Recognition> recognitions = [];
+    for (int i = 0; i < numDetections; i++) {
+      double y = boxesList[i * 4 + 0];
+      double x = boxesList[i * 4 + 1];
+      double h = boxesList[i * 4 + 2] - y; // 高さはymax - ymin
+      double w = boxesList[i * 4 + 3] - x; // 幅はxmax - xmin
+      Rect rect = Rect.fromLTWH(x*inputSize, y*inputSize, w*inputSize, h*inputSize);
+      if(scoresList[i] < objConfTh) continue;
+      // Recognitionオブジェクトを作成してリストに追加
+      recognitions.add(Recognition(i, classIdsList[i].toInt(), scoresList[i], rect));
     }
     return recognitions;
   }

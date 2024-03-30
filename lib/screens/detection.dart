@@ -73,7 +73,10 @@ class CameraView extends StatelessWidget {
   final CameraController cameraController;
   @override
   Widget build(BuildContext context) {
-    return CameraPreview(cameraController);
+    return AspectRatio(
+      aspectRatio: 1,
+      child: CameraPreview(cameraController),
+    );
   }
 }
 
