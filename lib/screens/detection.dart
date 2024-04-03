@@ -1,4 +1,6 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_yolov5_app/components/style.dart';
 import 'package:flutter_yolov5_app/main.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -19,7 +21,15 @@ class DetectionScreen extends HookConsumerWidget {
     
     return Scaffold(
       appBar: AppBar(
-        title: Text("${ref.watch(settingProvider).predictionDurationMs} ms", style: Styles.defaultStyle18),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              child: Text("${(ref.watch(settingProvider).predictionDurationMs == 0 ? 0 : 1000 / ref.watch(settingProvider).predictionDurationMs).toStringAsFixed(2)} FPS", style: Styles.defaultStyle18),
+            ),
+            Text("  (${ref.watch(settingProvider).predictionDurationMs} ms)", style: Styles.defaultStyle18),
+          ],
+        ),
       ),
       body: mlCamera.when(
         data: (mlCamera) => Stack(
