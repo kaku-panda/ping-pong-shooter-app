@@ -25,9 +25,9 @@ class DetectionScreen extends HookConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             SizedBox(
-              child: Text("${(ref.watch(settingProvider).predictionDurationMs == 0 ? 0 : 1000 / ref.watch(settingProvider).predictionDurationMs).toStringAsFixed(2)} FPS", style: Styles.defaultStyle18),
+              child: Text("${(ref.watch(settingProvider).predictDurationMs == 0 ? 0 : 1000 / ref.watch(settingProvider).predictDurationMs).toStringAsFixed(2)} FPS", style: Styles.defaultStyle18),
             ),
-            Text("  (${ref.watch(settingProvider).predictionDurationMs} ms)", style: Styles.defaultStyle18),
+            Text("  (${ref.watch(settingProvider).predictDurationMs} ms)", style: Styles.defaultStyle18),
           ],
         ),
       ),

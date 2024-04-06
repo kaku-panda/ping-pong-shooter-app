@@ -23,7 +23,7 @@ class Classifier {
     bool?        useGPU,
     String?      modelName,
   }) {
-    loadModel(interpreter, useGPU ?? false);
+    loadModel(interpreter, useGPU ?? false, modelName ?? 'yolov5n_float32.tflite');
   }
   late Interpreter? _interpreter;
   Interpreter? get interpreter => _interpreter;
@@ -33,6 +33,7 @@ class Classifier {
   late List<List<int>>  outputShapes;
   late TfLiteType       tensorType;
   late List<TfLiteType> outputTypes;
+  late Function         decodeOutputsTensor;
 
   static const int clsNum = 80;
   static const double objConfTh = 0.60;
@@ -46,7 +47,7 @@ class Classifier {
   /// @return Future<void>
   /////////////////////////////////////////////////
 
-  Future<void> loadModel(Interpreter? interpreter, [bool useGPU = false, String modelName = 'coco128_float32.tflite']) async {
+  Future<void> loadModel(Interpreter? interpreter, bool useGPU, String modelName) async {
     try {
 
       // set GPU delegate
@@ -56,7 +57,8 @@ class Classifier {
           final gpuDelegate = GpuDelegate(
             options: GpuDelegateOptions(
               allowPrecisionLoss: true,
-              waitType: TFLGpuDelegateWaitType.active,
+              waitType: TFLGpuDelegateWaitType.passive,
+              enableQuantization: (modelName == "ssd_mobilenet_uint8.tflite") ? true : false,
             ),
           );
           options.addDelegate(gpuDelegate);
@@ -83,6 +85,14 @@ class Classifier {
         outputShapes.add(tensor.shape);
         outputTypes.add(tensor.type);
       }
+
+      // set decode function
+      if (modelName == 'ssd_mobilenet_uint8.tflite') {
+        decodeOutputsTensor = decodeSsdMobilenetOutputsTensor;
+      } else {
+        decodeOutputsTensor = decodeYoloOutputsTensor;
+      }
+
     } on Exception catch (e) {
       logger.warning(e.toString());
     }
@@ -161,6 +171,19 @@ class Classifier {
 
     // run inference    
     _interpreter!.runForMultipleInputs(inputs, outputs);
+
+    print(inputSize);
+
+    return decodeOutputsTensor(outputs, image.height, image.width);
+  }
+
+  /////////////////////////////////////////////////
+  /// Decode Output Tensor
+  /// @param outputTensor: TensorBuffer
+  /// @return List<Recognition>
+  /////////////////////////////////////////////////
+  
+  List<Recognition> decodeSsdMobilenetOutputsTensor(Map<int, ByteBuffer> outputs, int transHeight, int transWidth) {
     
     // convert output to List<Recognition>
     Float32List boxesList         = outputs[0]!.asFloat32List();
@@ -177,9 +200,39 @@ class Classifier {
       double h = boxesList[i * 4 + 2] - y;
       double w = boxesList[i * 4 + 3] - x;
       Rect rect = Rect.fromLTWH(x*inputSize, y*inputSize, w*inputSize, h*inputSize);
-      Rect transformRect = imageProcessor!.inverseTransformRect(rect, image.height, image.width);
+      Rect transformRect = imageProcessor!.inverseTransformRect(rect, transHeight, transWidth);
       if(scoresList[i] < objConfTh) continue;
-      recognitions.add(Recognition(i, classIdsList[i].toInt(), scoresList[i], transformRect));
+      recognitions.add(Recognition(i, classIdsList[i].toInt(), scoresList[i], transformRect, false));
+    }
+    return recognitions;
+  }
+
+  List<Recognition> decodeYoloOutputsTensor(Map<int, ByteBuffer> outputs, int transHeight, int transWidth) {
+    
+    Float32List results = outputs[0]!.asFloat32List();
+
+    List<Recognition> recognitions = [];
+    
+    for (var i = 0; i < results.length; i += (5 + clsNum)) {
+      if (results[i + 4] < objConfTh) continue;
+
+      double maxClsConf = results.sublist(i + 5, i + 5 + clsNum - 1).reduce(max);
+      if (maxClsConf < clsConfTh) continue;
+
+      int cls = results.sublist(i + 5, i + 5 + clsNum - 1).indexOf(maxClsConf) % clsNum;
+      Rect rect = Rect.fromCenter(
+        center: Offset(
+          results[i] * inputSize,
+          results[i + 1] * inputSize,
+        ),
+        width: results[i + 2] * inputSize,
+        height: results[i + 3] * inputSize,
+      );
+      Rect transformRect = imageProcessor!.inverseTransformRect(rect, transHeight, transWidth);
+
+      recognitions.add(
+        Recognition(i, cls, maxClsConf, transformRect, true)
+      );
     }
     return recognitions;
   }

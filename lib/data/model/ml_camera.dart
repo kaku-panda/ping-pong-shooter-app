@@ -38,7 +38,7 @@ class MLCamera {
   ) {
     Future(() async {
       classifier = Classifier(
-        useGPU: _ref.read(settingProvider).useGPU,
+        useGPU:    _ref.read(settingProvider).useGPU,
         modelName: _ref.read(settingProvider).modelName,
       );
       await cameraController.startImageStream(onCameraAvailable);
@@ -84,13 +84,15 @@ class MLCamera {
     final isolateCamImgData = IsolateData(
       cameraImage: cameraImage,
       interpreterAddress: classifier.interpreter!.address,
+      useGPU: _ref.read(settingProvider).useGPU ? 1 : 0,
+      modelName: _ref.read(settingProvider).modelName,
     );
     _ref.read(recognitionsProvider.notifier).state = await compute(inference, isolateCamImgData);
     
     final endTime = DateTime.now();
     final duration = endTime.difference(startTime);
 
-    _ref.read(settingProvider).predictionDurationMs = duration.inMilliseconds;
+    _ref.read(settingProvider).predictDurationMs = duration.inMilliseconds;
 
     isPredicting = false;
   }
@@ -124,6 +126,8 @@ class MLCamera {
       interpreter: Interpreter.fromAddress(
         isolateCamImgData.interpreterAddress,
       ),
+      useGPU: isolateCamImgData.useGPU == 1 ? true : false,
+      modelName: isolateCamImgData.modelName,
     );
 
     return classifier.predict(image);
@@ -134,7 +138,11 @@ class IsolateData {
   IsolateData({
     required this.cameraImage,
     required this.interpreterAddress,
+    required this.useGPU,
+    required this.modelName,
   });
   final CameraImage cameraImage;
   final int interpreterAddress;
+  final int useGPU;
+  final String modelName;
 }

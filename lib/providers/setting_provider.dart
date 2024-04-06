@@ -2,8 +2,6 @@
 /// import
 ////////////////////////////////////////////////////////////////////////////////////////////
 
-import 'dart:ffi';
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,9 +18,9 @@ class SettingProvider extends ChangeNotifier {
   double _navigationBarHeight = 0.0;
   
   // for detection
-  bool _isStop = false;
-  bool _useGPU = false;
-  int? _predictionDurationMs = 0;
+  bool   _isStop = false;
+  bool   _useGPU = false;
+  int?   _predictDurationMs = 0;
   String _modelName = 'yolov5n_float32.tflite';
 
   bool get enableDarkTheme  => _enableDarkTheme;
@@ -33,9 +31,9 @@ class SettingProvider extends ChangeNotifier {
   double get navigationBarHeight => _navigationBarHeight;
 
   // for detection
-  bool get useGPU => _useGPU;
-  bool get isStop => _isStop;
-  int get predictionDurationMs => _predictionDurationMs ?? 0;
+  bool   get useGPU => _useGPU;
+  bool   get isStop => _isStop;
+  int    get predictDurationMs => _predictDurationMs ?? 0;
   String get modelName => _modelName;
 
   set enableDarkTheme(bool result) {
@@ -53,8 +51,8 @@ class SettingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  set predictionDurationMs(int result) {
-    _predictionDurationMs = result;
+  set predictDurationMs(int result) {
+    _predictDurationMs = result;
     notifyListeners();
   }
 
