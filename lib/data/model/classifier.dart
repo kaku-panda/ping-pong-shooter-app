@@ -8,31 +8,49 @@ import 'package:tflite_flutter_helper/tflite_flutter_helper.dart';
 import 'package:flutter_yolov5_app/utils/logger.dart';
 import 'package:flutter_yolov5_app/data/entity/recognition.dart';
 
+
+/////////////////////////////////////////////////
+/// Classifier
+/// @param interpreter: Interpreter
+/// @param useGPU: bool
+/// @param modelName: String
+/// @return Future<void>
+/////////////////////////////////////////////////
+
 class Classifier {
   Classifier({
     Interpreter? interpreter,
-    bool? useGPU,
-    String? modelName,
+    bool?        useGPU,
+    String?      modelName,
   }) {
     loadModel(interpreter, useGPU ?? false);
   }
   late Interpreter? _interpreter;
   Interpreter? get interpreter => _interpreter;
 
-  ImageProcessor? imageProcessor;
-  late int inputSize;
-  late List<List<int>> outputShapes;
-  late List<TfLiteType> _outputTypes;
+  ImageProcessor?       imageProcessor;
+  late int              inputSize;
+  late List<List<int>>  outputShapes;
+  late TfLiteType       tensorType;
+  late List<TfLiteType> outputTypes;
 
   static const int clsNum = 80;
   static const double objConfTh = 0.60;
   static const double clsConfTh = 0.60;
 
-  /// load interpreter
+  /////////////////////////////////////////////////
+  /// Load Interpreter
+  /// @param interpreter: Interpreter
+  /// @param useGPU: bool
+  /// @param modelName: String
+  /// @return Future<void>
+  /////////////////////////////////////////////////
+
   Future<void> loadModel(Interpreter? interpreter, [bool useGPU = false, String modelName = 'coco128_float32.tflite']) async {
     try {
-      var options = InterpreterOptions();
 
+      // set GPU delegate
+      var options = InterpreterOptions();
       if(interpreter == null){
         if(useGPU){
           final gpuDelegate = GpuDelegate(
@@ -46,61 +64,77 @@ class Classifier {
           options.threads = 4;
         }
       }
-      _interpreter = interpreter ??
-          await Interpreter.fromAsset(
-            'ssd_mobilenet.tflite',
-            // modelName,
-            options: options,
-          );
-      inputSize = _interpreter!.getInputTensor(0).shape[1];
-      final outputTensors = _interpreter!.getOutputTensors();
+
+      // load model
+      _interpreter = interpreter ?? await Interpreter.fromAsset(
+        modelName,
+        options: options,
+      );
+
+      // get input and output tensor
+      inputSize  = _interpreter!.getInputTensor(0).shape[1];
+      tensorType = _interpreter!.getInputTensors()[0].type;
+
+      // get output tensor      
       outputShapes = [];
-      _outputTypes = [];
-      for (final tensor in outputTensors) {
+      outputTypes  = [];
+
+      for (final tensor in _interpreter!.getOutputTensors()) {
         outputShapes.add(tensor.shape);
-        _outputTypes.add(tensor.type);
+        outputTypes.add(tensor.type);
       }
     } on Exception catch (e) {
       logger.warning(e.toString());
     }
   }
 
-  /// image pre process
-  TensorImage getProcessedImage(TensorImage inputImage) {
+  /////////////////////////////////////////////////
+  /// Image Preprocessing 
+  /// @param inputImage: TensorImage
+  /// @return TensorImage
+  /////////////////////////////////////////////////
+  
+  TensorImage getPreprocessedImage(TensorImage inputImage) {
+
     final padSize = max(inputImage.height, inputImage.width);
 
-    imageProcessor ??= ImageProcessorBuilder()
-        .add(
+    imageProcessor ??= ImageProcessorBuilder().add(
       ResizeWithCropOrPadOp(
         padSize,
         padSize,
       ),
-    )
-        .add(
+    ).add(
       ResizeOp(
         inputSize,
         inputSize,
         ResizeMethod.BILINEAR,
       ),
-    )
-        .build();
+    ).build();
     return imageProcessor!.process(inputImage);
   }
 
+  /////////////////////////////////////////////////
+  /// Prediction
+  /// @param image: image_lib.Image
+  /// @return List<Recognition>
+  /////////////////////////////////////////////////
+
   List<Recognition> predict(image_lib.Image image) {
+    
+    // if interpreter is null, return empty list
     if (_interpreter == null) {
       return [];
     }
 
-    var inputImage = TensorImage.fromImage(image);
-    inputImage = getProcessedImage(inputImage);
+    // convert image to TensorImage and preprocess it
+    TensorImage inputImage = getPreprocessedImage(TensorImage.fromImage(image));
 
-    TfLiteType tensorType;
-    List<int> shape = [inputSize, inputSize, 3];
     var normalizedTensorBuffer = TensorBuffer.createDynamic(TfLiteType.float32);
 
-    if ( _interpreter!.getInputTensors()[0].type == TfLiteType.uint8) {
-      tensorType = TfLiteType.uint8;
+    List<int> shape = [inputSize, inputSize, 3];
+
+    // create input tensor
+    if (tensorType == TfLiteType.uint8) {
       List<int> normalizedInputImage = [];
       for (var pixel in inputImage.tensorBuffer.getIntList()) {
         normalizedInputImage.add(pixel.toInt());
@@ -108,35 +142,32 @@ class Classifier {
       normalizedTensorBuffer = TensorBuffer.createDynamic(tensorType);
       normalizedTensorBuffer.loadList(normalizedInputImage, shape: shape);
     } else {
-      tensorType = TfLiteType.float32;
       List<double> normalizedInputImage = [];
       for (var pixel in inputImage.tensorBuffer.getDoubleList()) {
         normalizedInputImage.add(pixel/255);
       }
       normalizedTensorBuffer = TensorBuffer.createDynamic(tensorType);
       normalizedTensorBuffer.loadList(normalizedInputImage, shape: shape);
-    } 
-
+    }
     final inputs = [normalizedTensorBuffer.buffer];
 
-    /// tensor for results of inference
+    // create output tensor
     final List<TensorBufferFloat> outputLocations = List<TensorBufferFloat>.generate(
       outputShapes.length, (index) => TensorBufferFloat(outputShapes[index]),
     );
-
     final outputs = {
       for (int i = 0; i < outputLocations.length; i++) i: outputLocations[i].buffer,
     };
-    
-    _interpreter!.runForMultipleInputs(inputs, outputs);
 
-    // outputsからByteBufferを取得し、Float32Listに変換する例
-    Float32List boxesList = outputs[0]!.asFloat32List();
-    Float32List classIdsList = outputs[1]!.asFloat32List();
-    Float32List scoresList = outputs[2]!.asFloat32List();
+    // run inference    
+    _interpreter!.runForMultipleInputs(inputs, outputs);
+    
+    // convert output to List<Recognition>
+    Float32List boxesList         = outputs[0]!.asFloat32List();
+    Float32List classIdsList      = outputs[1]!.asFloat32List();
+    Float32List scoresList        = outputs[2]!.asFloat32List();
     Float32List numDetectionsList = outputs[3]!.asFloat32List();
 
-    // Float32Listから必要なデータを取得する
     int numDetections = numDetectionsList[0].toInt();
 
     List<Recognition> recognitions = [];

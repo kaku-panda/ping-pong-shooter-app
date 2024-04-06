@@ -7,8 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:settings_ui/settings_ui.dart';
-// import 'package:package_info_plus/package_info_plus.dart';
-
 // import 'package:share/share.dart';
 // import 'package:url_launcher/url_launcher.dart';
 
@@ -28,7 +26,14 @@ class ParametersScreen extends ConsumerStatefulWidget {
 class SettingScreenState extends ConsumerState<ParametersScreen> {
   
   Size screenSize = const Size(0, 0);
-  List<String> modelList = ['coco128_float32.tflite', 'yolov5n_float32.tflite', 'yolov5s_float32.tflite', 'yolov5m_float32.tflite', 'yolov5l_float32.tflite'];
+  List<String> modelList = [
+    'coco128_float32.tflite',
+    'yolov5n_float32.tflite',
+    'yolov5s_float32.tflite',
+    'yolov5m_float32.tflite',
+    'yolov5l_float32.tflite',
+    'ssd_mobilenet_uint8.tflite',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +42,7 @@ class SettingScreenState extends ConsumerState<ParametersScreen> {
       MediaQuery.of(context).size.height
     );
 
-    bool enableDarkTheme = ref.watch(settingProvider).enableDarkTheme;
+    bool   enableDarkTheme = ref.watch(settingProvider).enableDarkTheme;
     bool   useGPU    = ref.watch(settingProvider).useGPU;
     bool   isStop    = ref.watch(settingProvider).isStop;
     String modelName = ref.watch(settingProvider).modelName;
@@ -88,8 +93,7 @@ class SettingScreenState extends ConsumerState<ParametersScreen> {
                             0.5,
                             (BuildContext context, int index) {
                               setState(() {});
-                              ref.read(settingProvider).enableDarkTheme =
-                                  index == 1 ? true : false;
+                              ref.read(settingProvider).enableDarkTheme = index == 1 ? true : false;
                               ref.read(settingProvider).storePreferences();
                             },
                           ),
