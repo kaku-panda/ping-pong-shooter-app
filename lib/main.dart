@@ -72,7 +72,7 @@ final routerProvider   = Provider<GoRouter>((ref) {
                 path: '/viewer',
                 pageBuilder: (context, state) => NoTransitionPage(
                   key: state.pageKey,
-                  child: const DetectionScreen(),
+                  child: DetectionScreen(),
                 ),
               ),
             ],

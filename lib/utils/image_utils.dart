@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:camera/camera.dart';
 import 'package:image/image.dart' as image_lib;
 
@@ -46,25 +48,16 @@ class ImageUtils {
   }
 
   static image_lib.Image convertBGRAToImage(CameraImage cameraImage) {
-    final width = cameraImage.width;
-    final height = cameraImage.height;
+    final Uint8List bytes = cameraImage.planes[0].bytes;
+    final ByteBuffer buffer = bytes.buffer;
 
-    final image = image_lib.Image(width, height);
-
-    // BGRA形式のカメライメージから各ピクセルの色を取得してImageオブジェクトにセット
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        // BGRAフォーマットなので、1ピクセルあたり4バイト
-        final pixelOffset = (y * width + x) * 4;
-        final blue = cameraImage.planes[0].bytes[pixelOffset];
-        final green = cameraImage.planes[0].bytes[pixelOffset + 1];
-        final red = cameraImage.planes[0].bytes[pixelOffset + 2];
-        final alpha = cameraImage.planes[0].bytes[pixelOffset + 3];
-        // image ライブラリの setImage でピクセルの色を設定
-        image.setPixelRgba(x, y, red, green, blue, alpha);
-      }
-    }
-
+    // Create a new Image instance
+    final image = image_lib.Image.fromBytes(
+      cameraImage.width,
+      cameraImage.height,
+      buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+      format: image_lib.Format.bgra,
+    );
     return image;
   }
 }

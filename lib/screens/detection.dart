@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_yolov5_app/components/button.dart';
+import 'package:flutter_yolov5_app/components/modal_window.dart';
 import 'package:flutter_yolov5_app/components/style.dart';
 import 'package:flutter_yolov5_app/main.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -8,7 +11,16 @@ import 'package:camera/camera.dart';
 import 'package:flutter_yolov5_app/data/entity/recognition.dart';
 
 class DetectionScreen extends HookConsumerWidget {
-  const DetectionScreen({Key? key}) : super(key: key);
+  DetectionScreen({Key? key}) : super(key: key);
+
+  final List<String> modelList = [
+    'coco128_float32.tflite',
+    'yolov5n_float32.tflite',
+    'yolov5s_float32.tflite',
+    'yolov5m_float32.tflite',
+    'yolov5l_float32.tflite',
+    'ssd_mobilenet_uint8.tflite',
+  ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -42,10 +54,7 @@ class DetectionScreen extends HookConsumerWidget {
                     ref.read(settingProvider).storePreferences();
                     mlCamera.when(
                       data: (mlCamera) async {
-                        mlCamera.isStop = true;
-                        // await Future.doWhile(() => Future.delayed(const Duration(milliseconds: 100), () => mlCamera.isPredicting));
                         mlCamera.changeModel(!useGpu, modelName);
-                        mlCamera.isStop = false;
                       },
                       error: (err, stack) => print(err),
                       loading: () => print('loading'),
@@ -59,19 +68,34 @@ class DetectionScreen extends HookConsumerWidget {
                   width: 200,
                   height: 30,
                   onPressed: (){
-                    ref.read(settingProvider).useGPU = !useGpu;
-                    ref.read(settingProvider).storePreferences();
-                    mlCamera.when(
-                      data: (mlCamera){
-                        mlCamera.isStop = true;
-                        while(mlCamera.isPredicting){}
-                        mlCamera.changeModel(!useGpu, modelName);
-                        mlCamera.isStop = false;
-                      },
-                      error: (err, stack) => print(err),
-                      loading: () => print('loading'),
+                    showModalWindow(
+                      context,
+                      0.5,
+                      buildModalWindowContainer(
+                        context,
+                        [
+                        for (var model in modelList)
+                          Text(
+                            model,
+                            style: Styles.headlineStyle13,
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                        0.5,
+                        (BuildContext context, int index) {
+                          ref.read(settingProvider).modelName = modelList[index];
+                          ref.read(settingProvider).storePreferences();
+                          mlCamera.when(
+                            data: (mlCamera) async {
+                              mlCamera.changeModel(!useGpu, modelList[index]);
+                            },
+                            error: (err, stack) => print(err),
+                            loading: () => print('loading'),
+                          );
+                        },
+                      ),
                     );
-                  }
+                  },
                 ),
               ],
             ),
@@ -174,8 +198,10 @@ class BoundingBox extends StatelessWidget {
         height: renderLocation.height,
         decoration: BoxDecoration(
           border: Border.all(
-            color: Colors.cyan,
-            width: 1,
+            color: Colors.primaries[
+              result.label % Colors.primaries.length
+            ],
+            width: 3,
           ),
           borderRadius: const BorderRadius.all(
             Radius.circular(2),
@@ -191,7 +217,9 @@ class BoundingBox extends StatelessWidget {
       alignment: Alignment.topLeft,
       child: FittedBox(
         child: ColoredBox(
-          color: Colors.blue,
+          color: Colors.primaries[
+            result.label % Colors.primaries.length
+          ],
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [

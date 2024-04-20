@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:isolate';
-
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_yolov5_app/main.dart';
@@ -37,11 +36,12 @@ class MLCamera {
   final Ref _ref;
   late Classifier? classifier;
 
-  late Isolate isolate;
+  late Isolate  isolate;
   late SendPort sendPort;
+  late ReceivePort receivePort;
 
+  bool isPrepearing    = true;
   bool isPredicting    = false;
-  bool isStop          = false;
   bool enableDetection = true;
   int elapsed          = 0;
 
@@ -80,10 +80,11 @@ class MLCamera {
   ///////////////////////////////////////////////////////
 
   Future<void> initIsolate() async {
-    final receivePort = ReceivePort();
+    receivePort = ReceivePort();
     isPredicting = false;
     isolate = await Isolate.spawn(entryPoint, receivePort.sendPort);
     sendPort = await receivePort.first as SendPort;
+    isPrepearing = false;
   }
 
   ///////////////////////////////////////////////////////
@@ -93,8 +94,8 @@ class MLCamera {
   ///////////////////////////////////////////////////////
   
   void stopIsolate() {
+    receivePort.close();
     isolate.kill(priority: Isolate.immediate);
-    isPredicting = false;
   }
 
   ///////////////////////////////////////////////////////
@@ -123,13 +124,15 @@ class MLCamera {
   ///////////////////////////////////////////////////////
   
   Future<void> changeModel(bool useGPU, String modelName) async {
+    isPrepearing = true;
+    isPredicting = false;
     stopIsolate();
-    await Future.delayed(const Duration(milliseconds: 500));
     classifier = Classifier(
       useGPU:    useGPU,
       modelName: modelName,
     );
     initIsolate();
+    isPrepearing = false;
   }
 
   ///////////////////////////////////////////////////////
@@ -140,29 +143,19 @@ class MLCamera {
   
   Future<void> onCameraAvailable(CameraImage cameraImage) async {
 
-    if(_ref.read(settingProvider).isStop){
-      print('isStop');
-      return;
-    }
-
     if (classifier == null) {
-      print('classifier is null');
       return;
     }
 
     if (isPredicting) {
-      print('isPredicting');
       return;
     }
 
-    if (isStop) {
-      print('isStop');
+    if (isPrepearing) {
       return;
     }
 
-    print('predicting...');
     isPredicting = true;
-
     final startTime = DateTime.now();
     final isolateData = IsolateData(
       cameraImage: cameraImage,
@@ -171,7 +164,14 @@ class MLCamera {
 
     final responsePort = ReceivePort();
     sendPort.send([isolateData, responsePort.sendPort]);
-    final recognitions = await responsePort.first as List<Recognition>;
+    final result = await responsePort.first
+    .timeout(
+      const Duration(seconds: 1),
+      onTimeout: () {
+        return null;
+      },
+    );
+    List<Recognition> recognitions = result ?? [];
     _ref.read(recognitionsProvider.notifier).state = recognitions;
 
     isPredicting = false;

@@ -35,8 +35,8 @@ class Classifier {
   late Function         decodeOutputsTensor;
 
   static const int clsNum = 80;
-  static const double objConfTh = 0.60;
-  static const double clsConfTh = 0.60;
+  static const double objConfTh = 0.50;
+  static const double clsConfTh = 0.50;
 
   /////////////////////////////////////////////////
   /// Load Interpreter
