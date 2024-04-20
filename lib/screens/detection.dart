@@ -1,12 +1,10 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter_yolov5_app/components/button.dart';
 import 'package:flutter_yolov5_app/components/style.dart';
 import 'package:flutter_yolov5_app/main.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:camera/camera.dart';
 
-import 'package:flutter_yolov5_app/data/model/ml_camera.dart';
 import 'package:flutter_yolov5_app/data/entity/recognition.dart';
 
 class DetectionScreen extends HookConsumerWidget {
@@ -18,38 +16,101 @@ class DetectionScreen extends HookConsumerWidget {
     final size = MediaQuery.of(context).size;
     final mlCamera = ref.watch(mlCameraProvider(size));
     final recognitions = ref.watch(recognitionsProvider);
-    
+    final useGpu    = ref.watch(settingProvider).useGPU;
+    final modelName = ref.watch(settingProvider).modelName;
+
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              child: Text("${(ref.watch(settingProvider).predictDurationMs == 0 ? 0 : 1000 / ref.watch(settingProvider).predictDurationMs).toStringAsFixed(2)} FPS", style: Styles.defaultStyle18),
-            ),
-            Text("  (${ref.watch(settingProvider).predictDurationMs} ms)", style: Styles.defaultStyle18),
-          ],
-        ),
+        title: Text('Detection', style: Styles.defaultStyle18),
       ),
-      body: mlCamera.when(
-        data: (mlCamera) => Stack(
-          children: [
-            CameraView(cameraController: mlCamera.cameraController),
-            buildBoxes(
-              recognitions,
-              mlCamera.actualPreviewSize,
-              mlCamera.ratio,
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                CustomTextButton(
+                  text: 'Use GPU',
+                  backgroundColor: Styles.darkBgColor,
+                  enable: useGpu,
+                  width: 80,
+                  height: 30,
+                  onPressed: () async {
+                    ref.read(settingProvider).useGPU = !useGpu;
+                    ref.read(settingProvider).storePreferences();
+                    mlCamera.when(
+                      data: (mlCamera) async {
+                        mlCamera.isStop = true;
+                        // await Future.doWhile(() => Future.delayed(const Duration(milliseconds: 100), () => mlCamera.isPredicting));
+                        mlCamera.changeModel(!useGpu, modelName);
+                        mlCamera.isStop = false;
+                      },
+                      error: (err, stack) => print(err),
+                      loading: () => print('loading'),
+                    );
+                  }
+                ),
+                CustomTextButton(
+                  text: modelName,
+                  backgroundColor: Styles.darkBgColor,
+                  enable: true,
+                  width: 200,
+                  height: 30,
+                  onPressed: (){
+                    ref.read(settingProvider).useGPU = !useGpu;
+                    ref.read(settingProvider).storePreferences();
+                    mlCamera.when(
+                      data: (mlCamera){
+                        mlCamera.isStop = true;
+                        while(mlCamera.isPredicting){}
+                        mlCamera.changeModel(!useGpu, modelName);
+                        mlCamera.isStop = false;
+                      },
+                      error: (err, stack) => print(err),
+                      loading: () => print('loading'),
+                    );
+                  }
+                ),
+              ],
             ),
-          ],
-        ),
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
-        error: (err, stack) => Center(
-          child: Text(
-            err.toString(),
           ),
-        ),
+          Expanded(
+            child: mlCamera.when(
+              data: (mlCamera) => Stack(
+                children: [
+                  CameraView(cameraController: mlCamera.cameraController),
+                  buildBoxes(
+                    recognitions,
+                    mlCamera.actualPreviewSize,
+                    mlCamera.ratio,
+                  ),
+                ],
+              ),
+              loading: () => const Center(
+                child: CircularProgressIndicator(),
+              ),
+              error: (err, stack) => Center(
+                child: Text(
+                  err.toString(),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 40),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  child: Text("${(ref.watch(settingProvider).predictDurationMs == 0 ? 0 : 1000 / ref.watch(settingProvider).predictDurationMs).toStringAsFixed(2)} FPS", style: Styles.defaultStyle18),
+                ),
+                Text("  (${ref.watch(settingProvider).predictDurationMs} ms)", style: Styles.defaultStyle18),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

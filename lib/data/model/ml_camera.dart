@@ -1,55 +1,30 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:camera/camera.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_yolov5_app/main.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:image/image.dart' as image_lib;
-import 'package:tflite_flutter/tflite_flutter.dart';
 
 import 'package:flutter_yolov5_app/data/model/classifier.dart';
 import 'package:flutter_yolov5_app/utils/image_utils.dart';
 import 'package:flutter_yolov5_app/data/entity/recognition.dart';
 
-final recognitionsProvider = StateProvider<List<Recognition>>((ref) => []);
 
-final mlCameraProvider = FutureProvider.autoDispose.family<MLCamera, Size>((ref, size) async {
-  final cameras = await availableCameras();
-  final cameraController = CameraController(
-    cameras[0],
-    ResolutionPreset.low,
-    enableAudio: false,
-  );
-  await cameraController.initialize();
-  final mlCamera = MLCamera(
-    ref,
-    cameraController,
-    size,
-  );
-  return mlCamera;
-});
+///////////////////////////////////////////////////////////////////////////////// 
+/// MLCamera
+/// @param _ref: Ref
+/// @param cameraController: CameraController
+/// @param cameraViewSize: Size
+/// @return MLCamera
+///////////////////////////////////////////////////////////////////////////////// 
 
 class MLCamera {
-  MLCamera(
-    this._ref,
-    this.cameraController,
-    this.cameraViewSize,
-  ) {
-    Future(() async {
-      classifier = Classifier(
-        useGPU:    _ref.read(settingProvider).useGPU,
-        modelName: _ref.read(settingProvider).modelName,
-      );
-      await cameraController.startImageStream(onCameraAvailable);
-    });
-  }
 
-  final Ref _ref;
   final CameraController cameraController;
 
   final Size cameraViewSize;
-
   late double ratio = Platform.isAndroid
       ? cameraViewSize.width / cameraController.value.previewSize!.height
       : cameraViewSize.width / cameraController.value.previewSize!.height;
@@ -59,50 +34,167 @@ class MLCamera {
     cameraViewSize.width * ratio,
   );
 
-  late Classifier classifier;
+  final Ref _ref;
+  late Classifier? classifier;
 
-  bool isPredicting = false;
+  late Isolate isolate;
+  late SendPort sendPort;
 
+  bool isPredicting    = false;
+  bool isStop          = false;
+  bool enableDetection = true;
+  int elapsed          = 0;
+
+  ///////////////////////////////////////////////////////
+  /// MLCamera constructor
+  /// @param _ref: Ref
+  /// @param cameraController: CameraController
+  /// @param cameraViewSize: Size
+  /// @param useGPU: bool
+  /// @param modelName: String
+  /// @return MLCamera
+  /// @description: MLCamera constructor
+  ///////////////////////////////////////////////////////
+  
+  MLCamera(
+    this._ref,
+    this.cameraController,
+    this.cameraViewSize,
+    useGPU,
+    modelName,
+  ) {
+    Future(() async {
+      classifier = Classifier(
+        useGPU: useGPU,
+        modelName: modelName,
+      );
+      initIsolate();
+      await cameraController.startImageStream(onCameraAvailable);
+    });
+  }
+
+  ///////////////////////////////////////////////////////
+  /// initIsolate
+  /// @return Future<void>
+  /// @description: init isolate
+  ///////////////////////////////////////////////////////
+
+  Future<void> initIsolate() async {
+    final receivePort = ReceivePort();
+    isPredicting = false;
+    isolate = await Isolate.spawn(entryPoint, receivePort.sendPort);
+    sendPort = await receivePort.first as SendPort;
+  }
+
+  ///////////////////////////////////////////////////////
+  /// stopIsolate
+  /// @return void
+  /// @description: stop isolate
+  ///////////////////////////////////////////////////////
+  
+  void stopIsolate() {
+    isolate.kill(priority: Isolate.immediate);
+    isPredicting = false;
+  }
+
+  ///////////////////////////////////////////////////////
+  /// entryPoint
+  /// @param sendPort: SendPort
+  /// @return void
+  /// @description: entry point for isolate
+  ///////////////////////////////////////////////////////
+  
+  static void entryPoint(SendPort sendPort) {
+    final receivePort = ReceivePort();
+    sendPort.send(receivePort.sendPort);
+    receivePort.listen((message) async {
+      final data = message[0] as IsolateData;
+      final replyTo = message[1] as SendPort;
+      final results = await inference(data);
+      replyTo.send(results);
+    });
+  }
+
+  ///////////////////////////////////////////////////////
+  /// changeModel
+  /// @param modelName: String
+  /// @return void
+  /// @description: change model
+  ///////////////////////////////////////////////////////
+  
+  Future<void> changeModel(bool useGPU, String modelName) async {
+    stopIsolate();
+    await Future.delayed(const Duration(milliseconds: 500));
+    classifier = Classifier(
+      useGPU:    useGPU,
+      modelName: modelName,
+    );
+    initIsolate();
+  }
+
+  ///////////////////////////////////////////////////////
+  /// onCameraAvailable
+  /// @param cameraImage: CameraImage
+  /// @return Future<void>
+  ///////////////////////////////////////////////////////
+  
   Future<void> onCameraAvailable(CameraImage cameraImage) async {
 
     if(_ref.read(settingProvider).isStop){
+      print('isStop');
       return;
     }
 
-    if (classifier.interpreter == null) {
+    if (classifier == null) {
+      print('classifier is null');
       return;
     }
 
     if (isPredicting) {
+      print('isPredicting');
       return;
     }
 
+    if (isStop) {
+      print('isStop');
+      return;
+    }
+
+    print('predicting...');
     isPredicting = true;
-    
+
     final startTime = DateTime.now();
-
-    final isolateCamImgData = IsolateData(
+    final isolateData = IsolateData(
       cameraImage: cameraImage,
-      interpreterAddress: classifier.interpreter!.address,
-      useGPU: _ref.read(settingProvider).useGPU ? 1 : 0,
-      modelName: _ref.read(settingProvider).modelName,
+      classifier: classifier as Classifier,
     );
-    _ref.read(recognitionsProvider.notifier).state = await compute(inference, isolateCamImgData);
-    
-    final endTime = DateTime.now();
-    final duration = endTime.difference(startTime);
 
-    _ref.read(settingProvider).predictDurationMs = duration.inMilliseconds;
+    final responsePort = ReceivePort();
+    sendPort.send([isolateData, responsePort.sendPort]);
+    final recognitions = await responsePort.first as List<Recognition>;
+    _ref.read(recognitionsProvider.notifier).state = recognitions;
 
     isPredicting = false;
+    final endTime = DateTime.now();
+    final duration = endTime.difference(startTime);
+    elapsed = duration.inMilliseconds;
+    _ref.read(settingProvider).predictDurationMs = duration.inMilliseconds;
   }
 
-  /// inference function
-  static Future<List<Recognition>> inference(
-      IsolateData isolateCamImgData
-      ) async {
+  /////////////////////////////////////////////////////////
+  /// inference
+  /// @param isolateCamImgData: IsolateData
+  /// @return Future<List<Recognition>>
+  /// @description: inference
+  /////////////////////////////////////////////////////////
+  
+  static Future<List<Recognition>> inference(IsolateData isolateCamImgData) async {
     
     late image_lib.Image image;
+
+    if(isolateCamImgData.classifier == null){
+      return [];
+    }
 
     if(isolateCamImgData.cameraImage.format.group == ImageFormatGroup.yuv420){
       image = ImageUtils.convertYUV420ToImage(
@@ -122,27 +214,15 @@ class MLCamera {
       image = image_lib.copyRotate(image, 90);
     }
 
-    final classifier = Classifier(
-      interpreter: Interpreter.fromAddress(
-        isolateCamImgData.interpreterAddress,
-      ),
-      useGPU: isolateCamImgData.useGPU == 1 ? true : false,
-      modelName: isolateCamImgData.modelName,
-    );
-
-    return classifier.predict(image);
+    return isolateCamImgData.classifier!.predict(image);
   }
 }
 
 class IsolateData {
   IsolateData({
     required this.cameraImage,
-    required this.interpreterAddress,
-    required this.useGPU,
-    required this.modelName,
+    required this.classifier,
   });
   final CameraImage cameraImage;
-  final int interpreterAddress;
-  final int useGPU;
-  final String modelName;
+  final Classifier? classifier;
 }

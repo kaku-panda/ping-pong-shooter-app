@@ -1,30 +1,51 @@
 ////////////////////////////////////////////////////////////////////////////////////////////
 /// import
 ////////////////////////////////////////////////////////////////////////////////////////////
+import 'package:camera/camera.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:go_router/go_router.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 // my screens
 import 'package:flutter_yolov5_app/app_navigation_bar.dart';
 import 'package:flutter_yolov5_app/screens/detection.dart';
 import 'package:flutter_yolov5_app/screens/splash.dart';
 import 'package:flutter_yolov5_app/screens/parameters.dart';
-// import 'package:robo_debug_app/screens/joystick.dart';
-// import 'package:robo_debug_app/screens/motor.dart';
 
 // my components
 import 'package:flutter_yolov5_app/components/style.dart';
 import 'package:flutter_yolov5_app/providers/deep_link_mixin.dart';
 import 'package:flutter_yolov5_app/providers/setting_provider.dart';
+import 'package:flutter_yolov5_app/data/entity/recognition.dart';
+import 'package:flutter_yolov5_app/data/model/ml_camera.dart';
 
 
 final settingProvider  = ChangeNotifierProvider((ref) => SettingProvider());
 final deepLinkProvider = ChangeNotifierProvider((ref) => DeepLinkProvider());
+
+final recognitionsProvider = StateProvider<List<Recognition>>((ref) => []);
+
+final mlCameraProvider = FutureProvider.autoDispose.family<MLCamera, Size>((ref, size) async {
+  final cameras = await availableCameras();
+  final cameraController = CameraController(
+    cameras[0],
+    ResolutionPreset.low,
+    enableAudio: false,
+  );
+  await cameraController.initialize();
+  final mlCamera = MLCamera(
+    ref,
+    cameraController,
+    size,
+    ref.read(settingProvider).useGPU,
+    ref.read(settingProvider).modelName,
+  );
+  return mlCamera;
+});
+
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
 final routerProvider   = Provider<GoRouter>((ref) {
