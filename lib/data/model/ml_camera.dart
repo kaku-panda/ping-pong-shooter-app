@@ -41,6 +41,7 @@ class MLCamera {
   late ReceivePort receivePort;
 
   bool isPrepearing    = true;
+  bool isStop          = false;
   bool isPredicting    = false;
   bool enableDetection = true;
   int elapsed          = 0;
@@ -62,12 +63,14 @@ class MLCamera {
     this.cameraViewSize,
     useGPU,
     modelName,
+    isStop,
   ) {
     Future(() async {
       classifier = Classifier(
         useGPU: useGPU,
         modelName: modelName,
       );
+      this.isStop = isStop;
       initIsolate();
       await cameraController.startImageStream(onCameraAvailable);
     });
@@ -136,6 +139,17 @@ class MLCamera {
   }
 
   ///////////////////////////////////////////////////////
+  /// stopDetection  
+  /// @param modelName: String
+  /// @return void
+  /// @description: change model
+  ///////////////////////////////////////////////////////
+  
+  Future<void> stopDetection(bool stop) async {
+    isStop = stop;
+  }
+
+  ///////////////////////////////////////////////////////
   /// onCameraAvailable
   /// @param cameraImage: CameraImage
   /// @return Future<void>
@@ -152,6 +166,10 @@ class MLCamera {
     }
 
     if (isPrepearing) {
+      return;
+    }
+
+    if (isStop) {
       return;
     }
 

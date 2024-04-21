@@ -42,6 +42,7 @@ final mlCameraProvider = FutureProvider.autoDispose.family<MLCamera, Size>((ref,
     size,
     ref.read(settingProvider).useGPU,
     ref.read(settingProvider).modelName,
+    ref.read(settingProvider).isStop,
   );
   return mlCamera;
 });

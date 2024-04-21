@@ -25,11 +25,12 @@ class DetectionScreen extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     
-    final size = MediaQuery.of(context).size;
-    final mlCamera = ref.watch(mlCameraProvider(size));
+    final size         = MediaQuery.of(context).size;
+    final mlCamera     = ref.watch(mlCameraProvider(size));
     final recognitions = ref.watch(recognitionsProvider);
-    final useGpu    = ref.watch(settingProvider).useGPU;
-    final modelName = ref.watch(settingProvider).modelName;
+    final useGpu       = ref.watch(settingProvider).useGPU;
+    final modelName    = ref.watch(settingProvider).modelName;
+    final isStop       = ref.watch(settingProvider).isStop;
 
     return Scaffold(
       appBar: AppBar(
@@ -55,6 +56,24 @@ class DetectionScreen extends HookConsumerWidget {
                     mlCamera.when(
                       data: (mlCamera) async {
                         mlCamera.changeModel(!useGpu, modelName);
+                      },
+                      error: (err, stack) => print(err),
+                      loading: () => print('loading'),
+                    );
+                  }
+                ),
+                CustomTextButton(
+                  text: 'STOP',
+                  backgroundColor: Styles.darkBgColor,
+                  enable: isStop,
+                  width: 80,
+                  height: 30,
+                  onPressed: () async {
+                    ref.read(settingProvider).isStop = !isStop;
+                    ref.read(settingProvider).storePreferences();
+                    mlCamera.when(
+                      data: (mlCamera) async {
+                        mlCamera.stopDetection(!isStop);
                       },
                       error: (err, stack) => print(err),
                       loading: () => print('loading'),
