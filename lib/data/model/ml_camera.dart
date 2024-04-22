@@ -70,7 +70,7 @@ class MLCamera {
         useGPU: useGPU,
         modelName: modelName,
       );
-      this.isStop = isStop;
+      isStop = isStop;
       initIsolate();
       await cameraController.startImageStream(onCameraAvailable);
     });
