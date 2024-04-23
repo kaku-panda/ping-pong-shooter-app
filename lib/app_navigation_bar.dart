@@ -2,6 +2,7 @@
 /// import
 ////////////////////////////////////////////////////////////////////////////////////////////
 import 'package:flutter/material.dart';
+import 'package:flutter_yolov5_app/main.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_yolov5_app/components/style.dart';
@@ -30,14 +31,14 @@ class AppNavigationBar extends ConsumerWidget {
           children: [
             ListTile(
               leading: const Icon(Icons.car_rental, size: 28),
-              title: const Text('Viewer'),
+              title: const Text('Detection'),
               onTap: () => navigationShell.goBranch(0),
             ),
-            // ListTile(
-            //   leading: const Icon(Icons.chat, size: 28),
-            //   title: const Text('Console'),
-            //   onTap: () => navigationShell.goBranch(1),
-            // ),
+            ListTile(
+              leading: const Icon(Icons.chat, size: 28),
+              title: const Text('AR'),
+              onTap: () => navigationShell.goBranch(1),
+            ),
             // ListTile(
             //   leading: const Icon(Icons.gamepad, size: 28),
             //   title: const Text('Joystick'),
@@ -66,6 +67,14 @@ class AppNavigationBar extends ConsumerWidget {
           selectedFontSize: 11,
           unselectedFontSize: 10,
           onTap: (index) async {
+            if(index == 0){
+              ref.read(mlCameraProvider).initializeCamera(
+                Size(640, 480),
+                ref.read(settingProvider).useGPU,
+                ref.read(settingProvider).modelName,
+                ref.read(settingProvider).isStop,
+              );
+            }
             navigationShell.goBranch(
               index,
               initialLocation: index == navigationShell.currentIndex,
@@ -75,13 +84,13 @@ class AppNavigationBar extends ConsumerWidget {
             BottomNavigationBarItem(
               icon: Icon(Icons.smart_display, size: 24),
               activeIcon: Icon(Icons.smart_display, size: 28),
-              label: 'Viewer',
+              label: 'Detection',
             ),
-            // BottomNavigationBarItem(
-            //   icon: Icon(Icons.chat, size: 24),
-            //   activeIcon: Icon(Icons.chat, size: 28),
-            //   label: 'Console',
-            // ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.chat, size: 24),
+              activeIcon: Icon(Icons.chat, size: 28),
+              label: 'AR',
+            ),
             // BottomNavigationBarItem(
             //   icon: Icon(Icons.gamepad, size: 24),
             //   activeIcon: Icon(Icons.gamepad, size: 28),

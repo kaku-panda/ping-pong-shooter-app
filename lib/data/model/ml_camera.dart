@@ -2,8 +2,6 @@ import 'dart:io';
 import 'dart:isolate';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_yolov5_app/main.dart';
-import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:image/image.dart' as image_lib;
 
 import 'package:flutter_yolov5_app/data/model/classifier.dart';
@@ -13,7 +11,6 @@ import 'package:flutter_yolov5_app/data/entity/recognition.dart';
 
 ///////////////////////////////////////////////////////////////////////////////// 
 /// MLCamera
-/// @param _ref: Ref
 /// @param cameraController: CameraController
 /// @param cameraViewSize: Size
 /// @return MLCamera
@@ -33,13 +30,13 @@ class MLCamera {
     cameraViewSize.width * ratio,
   );
 
-  final Ref _ref;
   late Classifier? classifier;
 
   late Isolate  isolate;
   late SendPort sendPort;
   late ReceivePort receivePort;
 
+  List<Recognition> recognitions = [];
   bool isPrepearing    = true;
   bool isStop          = false;
   bool isPredicting    = false;
@@ -48,7 +45,6 @@ class MLCamera {
 
   ///////////////////////////////////////////////////////
   /// MLCamera constructor
-  /// @param _ref: Ref
   /// @param cameraController: CameraController
   /// @param cameraViewSize: Size
   /// @param useGPU: bool
@@ -58,7 +54,6 @@ class MLCamera {
   ///////////////////////////////////////////////////////
   
   MLCamera(
-    this._ref,
     this.cameraController,
     this.cameraViewSize,
     useGPU,
@@ -70,7 +65,7 @@ class MLCamera {
         useGPU: useGPU,
         modelName: modelName,
       );
-      isStop = isStop;
+      this.isStop = isStop;
       initIsolate();
       await cameraController.startImageStream(onCameraAvailable);
     });
@@ -156,7 +151,6 @@ class MLCamera {
   ///////////////////////////////////////////////////////
   
   Future<void> onCameraAvailable(CameraImage cameraImage) async {
-
     if (classifier == null) {
       return;
     }
@@ -189,14 +183,13 @@ class MLCamera {
         return null;
       },
     );
-    List<Recognition> recognitions = result ?? [];
-    _ref.read(recognitionsProvider.notifier).state = recognitions;
+    recognitions = result ?? [];
+    
 
     isPredicting = false;
     final endTime = DateTime.now();
     final duration = endTime.difference(startTime);
     elapsed = duration.inMilliseconds;
-    _ref.read(settingProvider).predictDurationMs = duration.inMilliseconds;
   }
 
   /////////////////////////////////////////////////////////
@@ -231,7 +224,6 @@ class MLCamera {
     if (Platform.isAndroid) {
       image = image_lib.copyRotate(image, 90);
     }
-
     return isolateCamImgData.classifier!.predict(image);
   }
 }

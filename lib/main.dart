@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter_yolov5_app/providers/ml_camera_provider.dart';
+import 'package:flutter_yolov5_app/screens/ar.dart';
 import 'package:go_router/go_router.dart';
 
 // my screens
@@ -20,32 +22,36 @@ import 'package:flutter_yolov5_app/components/style.dart';
 import 'package:flutter_yolov5_app/providers/deep_link_mixin.dart';
 import 'package:flutter_yolov5_app/providers/setting_provider.dart';
 import 'package:flutter_yolov5_app/data/entity/recognition.dart';
-import 'package:flutter_yolov5_app/data/model/ml_camera.dart';
 
 
 final settingProvider  = ChangeNotifierProvider((ref) => SettingProvider());
 final deepLinkProvider = ChangeNotifierProvider((ref) => DeepLinkProvider());
 
-final recognitionsProvider = StateProvider<List<Recognition>>((ref) => []);
+// final recognitionsProvider = StateProvider<List<Recognition>>((ref) => []);
+final mlCameraProvider = ChangeNotifierProvider((ref) => MLCameraProvider(
+  const Size(480, 640),
+  ref.read(settingProvider).useGPU,
+  ref.read(settingProvider).modelName,
+  ref.read(settingProvider).isStop
+  ),);
 
-final mlCameraProvider = FutureProvider.autoDispose.family<MLCamera, Size>((ref, size) async {
-  final cameras = await availableCameras();
-  final cameraController = CameraController(
-    cameras[0],
-    ResolutionPreset.low,
-    enableAudio: false,
-  );
-  await cameraController.initialize();
-  final mlCamera = MLCamera(
-    ref,
-    cameraController,
-    size,
-    ref.read(settingProvider).useGPU,
-    ref.read(settingProvider).modelName,
-    ref.read(settingProvider).isStop,
-  );
-  return mlCamera;
-});
+// final mlCameraProvider = FutureProvider.autoDispose.family<MLCamera, Size>((ref, size) async {
+//   final cameras = await availableCameras();
+//   final cameraController = CameraController(
+//     cameras[0],
+//     ResolutionPreset.medium,
+//     enableAudio: false,
+//   );
+//   await cameraController.initialize();
+//   final mlCamera = MLCamera(
+//     cameraController,
+//     Size(480, 640),
+//     ref.read(settingProvider).useGPU,
+//     ref.read(settingProvider).modelName,
+//     ref.read(settingProvider).isStop,
+//   );
+//   return mlCamera;
+// });
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -69,27 +75,27 @@ final routerProvider   = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes:[
               GoRoute(
-                name: 'viewer',
-                path: '/viewer',
+                name: 'detection',
+                path: '/detection',
                 pageBuilder: (context, state) => NoTransitionPage(
                   key: state.pageKey,
-                  child: DetectionScreen(),
+                  child: const DetectionScreen(),
                 ),
               ),
             ],
           ),
-          // StatefulShellBranch(
-          //   routes:[
-          //     GoRoute(
-          //       name: 'console',
-          //       path: '/console',
-          //       pageBuilder: (context, state) => NoTransitionPage(
-          //         key: state.pageKey,
-          //         child: const ConsoleScreen(),
-          //       ),
-          //     ),
-          //   ],
-          // ),
+          StatefulShellBranch(
+            routes:[
+              GoRoute(
+                name: 'ar',
+                path: '/ar',
+                pageBuilder: (context, state) => NoTransitionPage(
+                  key: state.pageKey,
+                  child: const AugmentedRearityScreen(),
+                ),
+              ),
+            ],
+          ),
           // StatefulShellBranch(
           //   routes:[
           //     GoRoute(
@@ -117,9 +123,9 @@ final routerProvider   = Provider<GoRouter>((ref) {
         ]
       ),
       GoRoute(
-      name: 'spalash',
-      path: '/splash',
-      pageBuilder: (context, state) => MaterialPage(
+        name: 'spalash',
+        path: '/splash',
+        pageBuilder: (context, state) => MaterialPage(
           key: state.pageKey,
           child: const SplashScreen(),
         ),

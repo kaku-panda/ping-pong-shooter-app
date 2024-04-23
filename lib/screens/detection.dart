@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_yolov5_app/components/button.dart';
 import 'package:flutter_yolov5_app/components/modal_window.dart';
@@ -10,8 +8,13 @@ import 'package:camera/camera.dart';
 
 import 'package:flutter_yolov5_app/data/entity/recognition.dart';
 
-class DetectionScreen extends HookConsumerWidget {
-  DetectionScreen({Key? key}) : super(key: key);
+class DetectionScreen extends ConsumerStatefulWidget {
+  const DetectionScreen({Key? key}) : super(key: key);
+  @override
+  DetectionScreenState createState() => DetectionScreenState();
+}
+
+class DetectionScreenState extends ConsumerState<DetectionScreen> {
 
   final List<String> modelList = [
     'coco128_float32.tflite',
@@ -23,11 +26,22 @@ class DetectionScreen extends HookConsumerWidget {
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void initState() {
+    print('DetectionScreenState.initState');
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    print('DetectionScreenState.dispose');
+    super.dispose();
+  } 
+
+  @override
+  Widget build(BuildContext context) {
     
     final size         = MediaQuery.of(context).size;
-    final mlCamera     = ref.watch(mlCameraProvider(size));
-    final recognitions = ref.watch(recognitionsProvider);
+    final mlCamera     = ref.watch(mlCameraProvider).camera;
     final useGpu       = ref.watch(settingProvider).useGPU;
     final modelName    = ref.watch(settingProvider).modelName;
     final isStop       = ref.watch(settingProvider).isStop;
@@ -38,51 +52,35 @@ class DetectionScreen extends HookConsumerWidget {
       ),
       body: Stack(
         children: [
-          mlCamera.when(
-            data: (mlCamera) => SizedBox(
-              width: MediaQuery.of(context).size.width,
-              height: MediaQuery.of(context).size.height,
-              child:
-              FittedBox(
-                fit: BoxFit.fitHeight,
-                alignment: Alignment.center,
-                child: SizedBox(
-                  width: 480,
-                  height: 640,
-                  child:
-                    Stack(
-                      children: [
-                        CameraView(
-                          cameraController: mlCamera.cameraController
+          SizedBox(
+            width: MediaQuery.of(context).size.width,
+            height: MediaQuery.of(context).size.height,
+            child:
+            FittedBox(
+              fit: BoxFit.fitHeight,
+              alignment: Alignment.center,
+              child: SizedBox(
+                width: 480,
+                height: 640,
+                child:
+                  Stack(
+                    children: [
+                      CameraView(
+                        cameraController: mlCamera.cameraController
+                      ),
+                      buildBoxes(
+                        ref.watch(mlCameraProvider).camera.recognitions,
+                        Size(
+                          mlCamera.actualPreviewSize.width * ((size.height-56-AppBar().preferredSize.height-MediaQuery.of(context).padding.top) / mlCamera.actualPreviewSize.height),
+                          (size.height-56-AppBar().preferredSize.height-MediaQuery.of(context).padding.top)
                         ),
-                        buildBoxes(
-                          recognitions,
-                          // mlCamera.actualPreviewSize,
-                          Size(
-                            mlCamera.actualPreviewSize.width * ((size.height-56-AppBar().preferredSize.height-MediaQuery.of(context).padding.top) / mlCamera.actualPreviewSize.height),
-                            (size.height-56-AppBar().preferredSize.height-MediaQuery.of(context).padding.top)
-                          ),
-                          mlCamera.ratio,
-                        ),
-                      ],
-                  ),
+                        mlCamera.ratio,
+                      ),
+                    ],
                 ),
               ),
             ),
-            loading: () => const Center(
-              child: CircularProgressIndicator(),
-            ),
-            error: (err, stack) => Center(
-              child: Text(
-                err.toString(),
-              ),
-            ),
           ),
-          // Container(
-          //   width: 393,
-          //   height: 520,
-          //   color: Colors.red,
-          // ),
           Column(
             children: [
               Padding(
@@ -99,13 +97,7 @@ class DetectionScreen extends HookConsumerWidget {
                       onPressed: () async {
                         ref.read(settingProvider).useGPU = !useGpu;
                         ref.read(settingProvider).storePreferences();
-                        mlCamera.when(
-                          data: (mlCamera) async {
-                            mlCamera.changeModel(!useGpu, modelName);
-                          },
-                          error: (err, stack) => print(err),
-                          loading: () => print('loading'),
-                        );
+                        mlCamera.changeModel(!useGpu, modelName);
                       }
                     ),
                     CustomTextButton(
@@ -117,13 +109,7 @@ class DetectionScreen extends HookConsumerWidget {
                       onPressed: () async {
                         ref.read(settingProvider).isStop = !isStop;
                         ref.read(settingProvider).storePreferences();
-                        mlCamera.when(
-                          data: (mlCamera) async {
-                            mlCamera.stopDetection(!isStop);
-                          },
-                          error: (err, stack) => print(err),
-                          loading: () => print('loading'),
-                        );
+                        mlCamera.stopDetection(!isStop);
                       }
                     ),
                     CustomTextButton(
@@ -150,13 +136,7 @@ class DetectionScreen extends HookConsumerWidget {
                             (BuildContext context, int index) {
                               ref.read(settingProvider).modelName = modelList[index];
                               ref.read(settingProvider).storePreferences();
-                              mlCamera.when(
-                                data: (mlCamera) async {
-                                  mlCamera.changeModel(!useGpu, modelList[index]);
-                                },
-                                error: (err, stack) => print(err),
-                                loading: () => print('loading'),
-                              );
+                              mlCamera.changeModel(!useGpu, modelList[index]);
                             },
                           ),
                         );
@@ -172,9 +152,9 @@ class DetectionScreen extends HookConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     SizedBox(
-                      child: Text("${(ref.watch(settingProvider).predictDurationMs == 0 ? 0 : 1000 / ref.watch(settingProvider).predictDurationMs).toStringAsFixed(2)} FPS", style: Styles.defaultStyle18),
+                      child: Text("${(ref.watch(mlCameraProvider).camera.elapsed == 0 ? 0 : 1000 / ref.watch(mlCameraProvider).camera.elapsed).toStringAsFixed(2)} FPS", style: Styles.defaultStyle18),
                     ),
-                    Text("  (${ref.watch(settingProvider).predictDurationMs} ms)", style: Styles.defaultStyle18),
+                    Text("  (${ref.watch(mlCameraProvider).camera.elapsed} ms)", style: Styles.defaultStyle18),
                   ],
                 ),
               ),
