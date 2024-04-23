@@ -3,6 +3,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////
 import 'package:flutter/material.dart';
 import 'package:flutter_yolov5_app/main.dart';
+import 'package:flutter_yolov5_app/screens/ar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_yolov5_app/components/style.dart';
@@ -11,13 +12,16 @@ import 'package:flutter_yolov5_app/components/style.dart';
 /// App Widget
 ////////////////////////////////////////////////////////////////////////////////////////////
 class AppNavigationBar extends ConsumerWidget {
-  const AppNavigationBar({
+  
+  AppNavigationBar({
     super.key,
     required this.navigationShell,
   });
 
   final StatefulNavigationShell navigationShell;
   int get currentIndex => navigationShell.currentIndex;
+
+  GlobalKey<AugmentedRearityScreenState> arViewKey = GlobalKey();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -75,6 +79,9 @@ class AppNavigationBar extends ConsumerWidget {
                 ref.read(settingProvider).isStop,
               );
             }
+            else if(index == 1) {
+              ref.read(arPluginProvider).resetARView();
+            }
             navigationShell.goBranch(
               index,
               initialLocation: index == navigationShell.currentIndex,
@@ -107,6 +114,5 @@ class AppNavigationBar extends ConsumerWidget {
         ),
       ) : null,
     );
-    
   }
 }

@@ -18,7 +18,7 @@ dependencies:
 
   # for AR
   ar_flutter_plugin: ^0.7.3
-
+  vector_math: ^2.1.4
 
   hooks_riverpod: ^2.5.1
   simple_logger: ^1.8.1+1
@@ -45,5 +45,6 @@ flutter:
     - assets/
     - assets/logo/
     - assets/images/
+    - Models/Chicken_01/
   uses-material-design: true
 

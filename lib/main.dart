@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter_yolov5_app/providers/ar_plugin_provider.dart';
 import 'package:flutter_yolov5_app/providers/ml_camera_provider.dart';
 import 'package:flutter_yolov5_app/screens/ar.dart';
 import 'package:go_router/go_router.dart';
@@ -34,6 +35,8 @@ final mlCameraProvider = ChangeNotifierProvider((ref) => MLCameraProvider(
   ref.read(settingProvider).modelName,
   ref.read(settingProvider).isStop
   ),);
+
+final arPluginProvider = ChangeNotifierProvider((ref) => ArPluginProvider());
 
 // final mlCameraProvider = FutureProvider.autoDispose.family<MLCamera, Size>((ref, size) async {
 //   final cameras = await availableCameras();
