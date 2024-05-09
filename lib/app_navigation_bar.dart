@@ -21,8 +21,6 @@ class AppNavigationBar extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
   int get currentIndex => navigationShell.currentIndex;
 
-  GlobalKey<AugmentedRearityScreenState> arViewKey = GlobalKey();
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
 
@@ -78,9 +76,6 @@ class AppNavigationBar extends ConsumerWidget {
                 ref.read(settingProvider).modelName,
                 ref.read(settingProvider).isStop,
               );
-            }
-            else if(index == 1) {
-              ref.read(arPluginProvider).resetARView();
             }
             navigationShell.goBranch(
               index,

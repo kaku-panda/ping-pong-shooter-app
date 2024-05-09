@@ -27,13 +27,11 @@ class DetectionScreenState extends ConsumerState<DetectionScreen> {
 
   @override
   void initState() {
-    print('DetectionScreenState.initState');
     super.initState();
   }
 
   @override
   void dispose() {
-    print('DetectionScreenState.dispose');
     super.dispose();
   } 
 

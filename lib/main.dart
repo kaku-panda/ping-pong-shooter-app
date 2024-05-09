@@ -1,13 +1,11 @@
 ////////////////////////////////////////////////////////////////////////////////////////////
 /// import
 ////////////////////////////////////////////////////////////////////////////////////////////
-import 'package:camera/camera.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter_yolov5_app/providers/ar_plugin_provider.dart';
 import 'package:flutter_yolov5_app/providers/ml_camera_provider.dart';
 import 'package:flutter_yolov5_app/screens/ar.dart';
 import 'package:go_router/go_router.dart';
@@ -22,7 +20,6 @@ import 'package:flutter_yolov5_app/screens/parameters.dart';
 import 'package:flutter_yolov5_app/components/style.dart';
 import 'package:flutter_yolov5_app/providers/deep_link_mixin.dart';
 import 'package:flutter_yolov5_app/providers/setting_provider.dart';
-import 'package:flutter_yolov5_app/data/entity/recognition.dart';
 
 
 final settingProvider  = ChangeNotifierProvider((ref) => SettingProvider());
@@ -35,8 +32,6 @@ final mlCameraProvider = ChangeNotifierProvider((ref) => MLCameraProvider(
   ref.read(settingProvider).modelName,
   ref.read(settingProvider).isStop
   ),);
-
-final arPluginProvider = ChangeNotifierProvider((ref) => ArPluginProvider());
 
 // final mlCameraProvider = FutureProvider.autoDispose.family<MLCamera, Size>((ref, size) async {
 //   final cameras = await availableCameras();
@@ -94,7 +89,7 @@ final routerProvider   = Provider<GoRouter>((ref) {
                 path: '/ar',
                 pageBuilder: (context, state) => NoTransitionPage(
                   key: state.pageKey,
-                  child: const AugmentedRearityScreen(),
+                  child: const ARScreen(),
                 ),
               ),
             ],

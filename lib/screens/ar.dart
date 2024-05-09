@@ -1,78 +1,107 @@
-////////////////////////////////////////////////////////////////////////////////////////////
-/// import
-////////////////////////////////////////////////////////////////////////////////////////////
-
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:vector_math/vector_math_64.dart' as vector;
-import 'package:arkit_plugin/arkit_plugin.dart';
-import 'package:collection/collection.dart';
-import 'dart:math' as math;
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 
+import 'package:flutter_unity_widget/flutter_unity_widget.dart';
 
-class AugmentedRearityScreen extends ConsumerStatefulWidget {
-  const AugmentedRearityScreen({Key? key}) : super(key: key);
+class ARScreen extends ConsumerStatefulWidget {
+  const ARScreen({Key? key}) : super(key: key);
   @override
-  AugmentedRearityScreenState createState() => AugmentedRearityScreenState();
+  ARScreenState createState() => ARScreenState();
 }
 
-class AugmentedRearityScreenState extends ConsumerState<AugmentedRearityScreen> {
-  late ARKitController arkitController;
+class ARScreenState extends ConsumerState<ARScreen> {
+  
+  static final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  UnityWidgetController? _unityWidgetController;
+  double _sliderValue = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   void dispose() {
-    arkitController.dispose();
     super.dispose();
-  }
+  } 
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-      appBar: AppBar(title: const Text('Physics Sample')),
-      body: Container(
-          child: ARKitSceneView(onARKitViewCreated: onARKitViewCreated)));
+  Widget build(BuildContext context) {
 
-  void onARKitViewCreated(ARKitController arkitController) {
-    this.arkitController = arkitController;
 
-    _addPlane(this.arkitController);
-    _addSphere(this.arkitController);
-  }
-
-  void _addSphere(ARKitController controller) {
-    final material =
-        ARKitMaterial(diffuse: ARKitMaterialProperty.color(Colors.blue));
-    final sphere = ARKitSphere(materials: [material], radius: 0.1);
-    final node = ARKitNode(
-        geometry: sphere,
-        physicsBody: ARKitPhysicsBody(
-          ARKitPhysicsBodyType.dynamicType,
-          categoryBitMask: BodyType.sphere.index + 1,
-        ),
-        position: vector.Vector3(0, 1, -1));
-    controller.add(node);
-  }
-
-  void _addPlane(ARKitController controller) {
-    final plane = ARKitPlane(
-      width: 2,
-      height: 2,
-      materials: [
-        ARKitMaterial(
-          diffuse: ARKitMaterialProperty.color(Colors.green),
-        )
-      ],
-    );
-    final node = ARKitNode(
-      geometry: plane,
-      physicsBody: ARKitPhysicsBody(
-        ARKitPhysicsBodyType.staticType,
-        shape: ARKitPhysicsShape(plane),
-        categoryBitMask: BodyType.plane.index + 1,
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Detection', style: Styles.defaultStyle18),
       ),
-      rotation: vector.Vector4(1, 0, 0, -math.pi / 2),
-      position: vector.Vector3(0, -0.5, -1),
+      body: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Stack(
+            children: <Widget>[
+              UnityWidget(
+                onUnityCreated: onUnityCreated,
+                onUnityMessage: onUnityMessage,
+                onUnitySceneLoaded: onUnitySceneLoaded,
+                fullscreen: false,
+              ),
+              Positioned(
+                bottom: 20,
+                left: 20,
+                right: 20,
+                // <You need a PointerInterceptor here on web>
+                child: Card(
+                  elevation: 10,
+                  child: Column(
+                    children: <Widget>[
+                      const Padding(
+                        padding: EdgeInsets.only(top: 20),
+                        child: Text("Rotation speed:"),
+                      ),
+                      Slider(
+                        onChanged: (value) {
+                          setState(() {
+                            _sliderValue = value;
+                          });
+                          setRotationSpeed(value.toString());
+                        },
+                        value: _sliderValue,
+                        min: 0,
+                        max: 20,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
     );
-    controller.add(node);
+  }
+
+  // Communcation from Flutter to Unity
+  void setRotationSpeed(String speed) {
+    _unityWidgetController?.postMessage(
+      'CubeManager',
+      'SetRotationSpeed',
+      speed,
+    );
+  }
+
+  // Communication from Unity to Flutter
+  void onUnityMessage(message) {
+    print('Received message from unity: ${message.toString()}');
+  }
+
+  // Callback that connects the created controller to the unity controller
+  void onUnityCreated(controller) {
+    _unityWidgetController = controller;
+  }
+
+  // Communication from Unity when new scene is loaded to Flutter
+  void onUnitySceneLoaded(SceneLoaded? sceneInfo) {
+    if (sceneInfo != null) {
+      print('Received scene loaded from unity: ${sceneInfo.name}');
+      print(
+          'Received scene loaded from unity buildIndex: ${sceneInfo.buildIndex}');
+    }
   }
 }
-enum BodyType { sphere, plane }
