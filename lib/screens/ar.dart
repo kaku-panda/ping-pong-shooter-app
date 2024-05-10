@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-
+import 'package:flutter_yolov5_app/components/style.dart';
 import 'package:flutter_unity_widget/flutter_unity_widget.dart';
 
 class ARScreen extends ConsumerStatefulWidget {
@@ -31,49 +31,14 @@ class ARScreenState extends ConsumerState<ARScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Detection', style: Styles.defaultStyle18),
+        title: Text('AR', style: Styles.defaultStyle18),
       ),
-      body: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Stack(
-            children: <Widget>[
-              UnityWidget(
-                onUnityCreated: onUnityCreated,
-                onUnityMessage: onUnityMessage,
-                onUnitySceneLoaded: onUnitySceneLoaded,
-                fullscreen: false,
-              ),
-              Positioned(
-                bottom: 20,
-                left: 20,
-                right: 20,
-                // <You need a PointerInterceptor here on web>
-                child: Card(
-                  elevation: 10,
-                  child: Column(
-                    children: <Widget>[
-                      const Padding(
-                        padding: EdgeInsets.only(top: 20),
-                        child: Text("Rotation speed:"),
-                      ),
-                      Slider(
-                        onChanged: (value) {
-                          setState(() {
-                            _sliderValue = value;
-                          });
-                          setRotationSpeed(value.toString());
-                        },
-                        value: _sliderValue,
-                        min: 0,
-                        max: 20,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+      body: UnityWidget(
+        onUnityCreated: onUnityCreated,
+        onUnityMessage: onUnityMessage,
+        onUnitySceneLoaded: onUnitySceneLoaded,
+        fullscreen: false,
+      ),
     );
   }
 
